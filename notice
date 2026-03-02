@@ -1,0 +1,65 @@
+project/
+├── app/
+│   ├── main.py                 # FastAPI 진입점
+│   │
+│   ├── core/
+│   │   ├── config.py           # DB URL, 환경설정
+│   │   └── security.py         # 인증/JWT
+│   │
+│   ├── db/
+│   │    └── mysql.py            #디비 연결을 정의
+│   │
+│   ├── models/                 # SQLAlchemy ORM 모델(미구현)
+│   │   └── item.py
+│   │
+│   ├── schemas/                # Pydantic  걍 DTO임
+│   │   └── item.py
+│   │
+│   ├── repositories/           # DB 접근 로직 (CRUD)
+│   │   └── Student_repo.py      #디비 접근 및 sql 실행
+│   │
+│   ├── services/               # 비즈니스 로직 (미구현)
+│   │   └── item_service.py
+│   │
+│   ├── api/                    # API 라우터
+│   │   └── v1/
+│   │       ├── ping.py
+│   │       └── student_api.py
+│   │
+│   └── tests/
+│       └── test_items.py
+│
+├── venv/
+├── .env
+├── requirements.txt
+└── README.md
+
+
+현 프로젝트에서 nginx는 단순 프록시서버 
+추후 확장을 통해 프론트서버로 작동가능함
+
+nginx를 통해 트래픽분산 구현이 가능
+
+upstream api {
+    server 127.0.0.1:8000;
+    server 127.0.0.1:8001;
+}
+
+
+#프록시 계층에서 실행
+//유지보수 진입
+sudo touch /var/www/maintenance/enable
+sudo nginx -s reload
+
+//해제
+sudo rm /var/www/maintenance/enable
+sudo nginx -s reload
+
+
+메인서버
+/SideProjects/mcp/ uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+
+프록시서버
+brew services start nginx
+brew services list
+brew services stop nginx

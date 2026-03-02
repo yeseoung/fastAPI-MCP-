@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login & Students</title>
+</head>
+<body>
+    <h1>Login</h1>
+    <input type="text" id="username" placeholder="이름">
+    <input type="password" id="password" placeholder="학번">
+    <button id="loginBtn" onclick="login()">Login</button>
+    <button id="logoutBtn" onclick="logout()">Logout</button>
+
+    <h2>Token Info</h2>
+    <div>Token: <span id="token_display">None</span></div>
+    <div>Expires in: <span id="token_expire">N/A</span> seconds</div>
+
+    <h2>Students</h2>
+    <button onclick="getStudents()">Get Students</button>
+    <pre id="result"></pre>
+
+    <script>
+        let token = "";
+        let tokenInterval = null;
+
+        // JWT payload decode
+        function parseJwt(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(c =>
+                    '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+                ).join(''));
+                return JSON.parse(jsonPayload);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // 로그인
+        async function login() {
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+
+            try {
+                const res = await fetch("/auth/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    token = data.access_token;
+                    localStorage.setItem("token", token); // LocalStorage 저장
+                    document.getElementById("token_display").textContent = token;
+
+                    if (tokenInterval) clearInterval(tokenInterval);
+                    tokenInterval = setInterval(updateTokenExpire, 1000);
+
+                    updateLoginUI();
+                    alert("Login successful!");
+                } else {
+                    alert(data.detail || "Login failed");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Error connecting to server");
+            }
+        }
+
+        // 로그아웃
+        function logout() {
+            token = "";
+            localStorage.removeItem("token");
+            document.getElementById("token_display").textContent = "None";
+            document.getElementById("token_expire").textContent = "N/A";
+            document.getElementById("result").textContent = ""; // 학생 목록 초기화
+
+            if (tokenInterval) clearInterval(tokenInterval);
+            updateLoginUI();
+            alert("Logged out");
+        }
+
+        // 토큰 만료 시간 업데이트
+        function updateTokenExpire() {
+            if (!token) return;
+
+            const payload = parseJwt(token);
+            if (!payload || !payload.exp) return;
+
+            const now = Math.floor(Date.now() / 1000);
+            const remaining = payload.exp - now;
+
+            document.getElementById("token_expire").textContent = remaining > 0 ? remaining : "Expired";
+
+            if (remaining <= 0) {
+                logout();
+                alert("Token expired! Please login again.");
+            }
+        }
+
+        // 학생 조회
+        async function getStudents() {
+            token = localStorage.getItem("token") || token;
+
+            if (!token) {
+                alert("Please login first!");
+                return;
+            }
+
+            try {
+                const res = await fetch("/students/", {
+                    method: "GET",
+                    headers: { "Authorization": "Bearer " + token }
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById("result").textContent = JSON.stringify(data, null, 2);
+                } else {
+                    const error = await res.json();
+                    alert(error.detail || "Failed to fetch students");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Error fetching students");
+            }
+        }
+
+        // 로그인/로그아웃 버튼 상태 동기화
+        function updateLoginUI() {
+            const loggedIn = !!token;
+            document.getElementById("loginBtn").disabled = loggedIn;
+            document.getElementById("logoutBtn").disabled = !loggedIn;
+        }
+
+        // 페이지 로드 시 LocalStorage에서 토큰 불러오기
+        window.onload = () => {
+            token = localStorage.getItem("token") || "";
+            if (token) {
+                document.getElementById("token_display").textContent = token;
+                tokenInterval = setInterval(updateTokenExpire, 1000);
+            }
+            updateLoginUI();
+        };
+    </script>
+</body>
+</html>
