@@ -48,7 +48,7 @@ async def confirm_team(data: dict = Body(...)):
         conn.close()
 
 @router.get("/my-teams")
-async def get_my_teams(username: str = Query(...)): # Query 파라미터 명시 ✅
+async def get_my_teams(username: str = Query(...)):
     conn = get_stu_conn()
     try:
         with conn.cursor(pymysql.cursors.DictCursor) as cursor:
@@ -58,11 +58,8 @@ async def get_my_teams(username: str = Query(...)): # Query 파라미터 명시 
             result = cursor.fetchall()
             
             for row in result:
-                # 1. members JSON 문자열을 리스트로 변환 ✅
                 if isinstance(row['members'], str):
                     row['members'] = json.loads(row['members'])
-                
-                # 2. 날짜 객체를 문자열로 변환 (JSON 에러 방지 핵심!) ✅
                 if row['created_at']:
                     row['created_at'] = row['created_at'].strftime("%Y-%m-%d %H:%M:%S")
                     
