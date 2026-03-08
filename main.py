@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from api.student_api import router as student_router
 from api.whoami import router as IPdetecter
 from api.Authlogin import router as Auth_router
+from api.team_match import router as team_match
 from fastapi.responses import JSONResponse
 
 app = FastAPI()
@@ -12,5 +13,6 @@ app = FastAPI()
 app.include_router(student_router)
 app.include_router(Auth_router)
 app.include_router(IPdetecter)
+app.include_router(team_match)
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

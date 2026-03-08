@@ -63,3 +63,8 @@ sudo nginx -s reload
 brew services start nginx
 brew services list
 brew services stop nginx
+
+
+디비키고 
+프록시 열고
+마지막 유비콘

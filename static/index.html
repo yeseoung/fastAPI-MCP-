@@ -1,150 +1,256 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Login & Students</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>팀구 - 매칭 시스템</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-light: #eef2ff;
+            --accent: #f59e0b;
+            --success: #10b981;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --muted: #64748b;
+        }
+
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 24px;
+            width: 95vw;
+            max-width: 1200px;
+            height: 90vh;
+        }
+
+        .sidebar { display: flex; flex-direction: column; gap: 20px; }
+        .logo { font-size: 3rem; color: var(--primary); font-weight: 900; letter-spacing: -2px; }
+
+        .card {
+            background: var(--card);
+            padding: 24px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05);
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+
+        h2 { font-size: 1.1rem; margin: 0 0 15px 0; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+        input {
+            width: 100%; box-sizing: border-box; padding: 12px; margin-bottom: 10px;
+            border: 1px solid #e2e8f0; border-radius: 10px;
+        }
+        
+        button {
+            width: 100%; padding: 12px; border: none; border-radius: 10px;
+            font-weight: 700; cursor: pointer; transition: 0.2s;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-outline { background: transparent; border: 1px solid #e2e8f0; color: var(--muted); margin-top: 8px; font-size: 0.85rem; }
+
+        .main-content { gap: 20px; overflow-y: auto; padding-right: 10px; }
+        
+        /* 매칭 그리드 */
+        .match-grid {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+            background: #fcfcfd; padding: 15px; border-radius: 15px; border: 1px solid #f1f5f9;
+        }
+
+        .member-card {
+            background: white; padding: 12px; border-radius: 12px;
+            border: 1px solid #f1f5f9; display: flex; align-items: center; gap: 12px;
+        }
+        .leader-card { border: 2px solid var(--accent); }
+
+        /* 내 팀 목록 스타일 */
+        .my-teams-container { margin-top: 10px; }
+        .team-item {
+            background: #fff; border: 1px solid #e2e8f0; padding: 15px;
+            border-radius: 12px; margin-bottom: 10px; display: flex; 
+            justify-content: space-between; align-items: center;
+        }
+        .team-info b { color: var(--primary); font-size: 1.05rem; }
+        .team-members { font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
+
+        #confirm_section {
+            background: var(--primary-light); padding: 15px; border-radius: 15px;
+            display: none; margin-bottom: 10px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Login</h1>
-    <input type="text" id="username" placeholder="이름">
-    <input type="password" id="password" placeholder="학번">
-    <button id="loginBtn" onclick="login()">Login</button>
-    <button id="logoutBtn" onclick="logout()">Logout</button>
 
-    <h2>Token Info</h2>
-    <div>Token: <span id="token_display">None</span></div>
-    <div>Expires in: <span id="token_expire">N/A</span> seconds</div>
+<div class="dashboard">
+    <div class="sidebar">
+        <div class="logo">팀구</div>
+        <div class="card">
+            <h2>🔐 로그인</h2>
+            <input type="text" id="username" placeholder="이름 입력">
+            <input type="password" id="password" placeholder="학번 입력">
+            <button class="btn-primary" onclick="login()">입장하기</button>
+            <button class="btn-outline" id="logoutBtn" onclick="logout()" disabled>로그아웃</button>
+        </div>
+    </div>
 
-    <h2>Students</h2>
-    <button onclick="getStudents()">Get Students</button>
-    <pre id="result"></pre>
+    <div class="main-content">
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h2 style="margin:0;">🚀 실시간 랜덤 매칭</h2>
+                <button class="btn-primary" id="matchBtn" onclick="getTeamMatch()" style="width:auto; padding: 8px 20px;">매칭 시작</button>
+            </div>
+            
+            <div id="match_list" class="match-grid">
+                <div style="grid-column: span 2; text-align: center; padding: 20px; color: var(--muted);">매칭 결과가 여기에 표시됩니다.</div>
+            </div>
 
-    <script>
-        let token = "";
-        let tokenInterval = null;
+            <div id="confirm_section">
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="teamNameInput" placeholder="확정할 팀 이름 입력" style="margin-bottom:0;">
+                    <button class="btn-success" onclick="saveTeam()" style="width:120px;">팀 확정</button>
+                </div>
+            </div>
+        </div>
 
-        // JWT payload decode
-        function parseJwt(token) {
-            try {
-                const base64Url = token.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const jsonPayload = decodeURIComponent(atob(base64).split('').map(c =>
-                    '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
-                ).join(''));
-                return JSON.parse(jsonPayload);
-            } catch (e) {
-                return null;
-            }
-        }
+        <div class="card my-teams-container">
+            <h2>📋 내가 확정한 팀 목록</h2>
+            <div id="my_team_list">
+                <div style="text-align: center; padding: 20px; color: var(--muted);">로그인 후 확인 가능합니다.</div>
+            </div>
+        </div>
+    </div>
+</div>
 
-        // 로그인
-        async function login() {
-            const username = document.getElementById("username").value;
-            const password = document.getElementById("password").value;
+<script>
+    let token = "";
+    let loggedInUser = "";
+    let currentMatchData = { members: [], leader: "" };
 
-            try {
-                const res = await fetch("/auth/login", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ username, password })
+    async function login() {
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+        try {
+            const res = await fetch("/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                token = data.access_token;
+                loggedInUser = username; // 현재 사용자 저장
+                localStorage.setItem("token", token);
+                localStorage.setItem("username", username);
+                document.getElementById("logoutBtn").disabled = false;
+                alert(username + "님, 환영합니다!");
+                loadMyTeams(); // 내 팀 목록 불러오기
+            } else { alert("로그인 실패"); }
+        } catch (err) { alert("서버 연결 실패"); }
+    }
+
+    function logout() {
+        token = ""; loggedInUser = "";
+        localStorage.clear();
+        location.reload();
+    }
+
+    async function getTeamMatch() {
+        const currentToken = localStorage.getItem("token");
+        if(!currentToken) { alert("로그인이 필요합니다."); return; }
+        
+        try {
+            const res = await fetch("/match", { headers: { "Authorization": "Bearer " + currentToken } });
+            const data = await res.json();
+            if (res.ok) {
+                const list = document.getElementById("match_list");
+                list.innerHTML = "";
+                const leaderIdx = Math.floor(Math.random() * data.team.length);
+                currentMatchData.members = data.team.map(s => s.name);
+                currentMatchData.leader = data.team[leaderIdx].name;
+
+                data.team.forEach((s, i) => {
+                    const isLeader = i === leaderIdx;
+                    list.innerHTML += `
+                        <div class="member-card ${isLeader ? 'leader-card' : ''}">
+                            <div style="font-weight:bold; color:var(--primary)">${isLeader ? '👑' : i+1}</div>
+                            <div><b>${s.name}</b><br><small>${s.student_id}</small></div>
+                        </div>`;
                 });
-
-                const data = await res.json();
-
-                if (res.ok) {
-                    token = data.access_token;
-                    localStorage.setItem("token", token); // LocalStorage 저장
-                    document.getElementById("token_display").textContent = token;
-
-                    if (tokenInterval) clearInterval(tokenInterval);
-                    tokenInterval = setInterval(updateTokenExpire, 1000);
-
-                    updateLoginUI();
-                    alert("Login successful!");
-                } else {
-                    alert(data.detail || "Login failed");
-                }
-            } catch (err) {
-                console.error(err);
-                alert("Error connecting to server");
+                document.getElementById("confirm_section").style.display = "block";
             }
-        }
+        } catch (err) { alert("매칭 오류"); }
+    }
 
-        // 로그아웃
-        function logout() {
-            token = "";
-            localStorage.removeItem("token");
-            document.getElementById("token_display").textContent = "None";
-            document.getElementById("token_expire").textContent = "N/A";
-            document.getElementById("result").textContent = ""; // 학생 목록 초기화
+    async function saveTeam() {
+        const teamName = document.getElementById("teamNameInput").value;
+        if (!teamName) { alert("팀 이름을 입력하세요."); return; }
 
-            if (tokenInterval) clearInterval(tokenInterval);
-            updateLoginUI();
-            alert("Logged out");
-        }
-
-        // 토큰 만료 시간 업데이트
-        function updateTokenExpire() {
-            if (!token) return;
-
-            const payload = parseJwt(token);
-            if (!payload || !payload.exp) return;
-
-            const now = Math.floor(Date.now() / 1000);
-            const remaining = payload.exp - now;
-
-            document.getElementById("token_expire").textContent = remaining > 0 ? remaining : "Expired";
-
-            if (remaining <= 0) {
-                logout();
-                alert("Token expired! Please login again.");
+        try {
+            const res = await fetch("/confirm", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+                body: JSON.stringify({
+                    team_name: teamName,
+                    members: currentMatchData.members,
+                    leader: currentMatchData.leader
+                })
+            });
+            if (res.ok) {
+                alert("팀이 확정되었습니다!");
+                document.getElementById("confirm_section").style.display = "none";
+                document.getElementById("teamNameInput").value = "";
+                loadMyTeams(); // 목록 새로고침
             }
-        }
+        } catch (err) { alert("저장 오류"); }
+    }
 
-        // 학생 조회
-        async function getStudents() {
-            token = localStorage.getItem("token") || token;
+    // 내 팀 목록 불러오기 함수 ✅
+    async function loadMyTeams() {
+        const user = loggedInUser || localStorage.getItem("username");
+        if (!user) return;
 
-            if (!token) {
-                alert("Please login first!");
-                return;
+        try {
+            const res = await fetch(`/my-teams?username=${encodeURIComponent(user)}`);
+            const data = await res.json();
+            const listDiv = document.getElementById("my_team_list");
+            
+            if (res.ok && data.teams.length > 0) {
+                listDiv.innerHTML = data.teams.map(t => `
+                    <div class="team-item">
+                        <div class="team-info">
+                            <b>${t.team_name}</b>
+                            <div class="team-members">멤버: ${t.members.join(", ")}</div>
+                        </div>
+                        <div style="font-size:0.75rem; color:#94a3b8;">${t.created_at.split('T')[0]}</div>
+                    </div>
+                `).join('');
+            } else {
+                listDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--muted);">아직 확정한 팀이 없습니다.</div>';
             }
+        } catch (err) { console.error("목록 로드 실패", err); }
+    }
 
-            try {
-                const res = await fetch("/students/", {
-                    method: "GET",
-                    headers: { "Authorization": "Bearer " + token }
-                });
-
-                if (res.ok) {
-                    const data = await res.json();
-                    document.getElementById("result").textContent = JSON.stringify(data, null, 2);
-                } else {
-                    const error = await res.json();
-                    alert(error.detail || "Failed to fetch students");
-                }
-            } catch (err) {
-                console.error(err);
-                alert("Error fetching students");
-            }
+    window.onload = () => {
+        if(localStorage.getItem("token")) {
+            token = localStorage.getItem("token");
+            loggedInUser = localStorage.getItem("username");
+            document.getElementById("logoutBtn").disabled = false;
+            loadMyTeams();
         }
-
-        // 로그인/로그아웃 버튼 상태 동기화
-        function updateLoginUI() {
-            const loggedIn = !!token;
-            document.getElementById("loginBtn").disabled = loggedIn;
-            document.getElementById("logoutBtn").disabled = !loggedIn;
-        }
-
-        // 페이지 로드 시 LocalStorage에서 토큰 불러오기
-        window.onload = () => {
-            token = localStorage.getItem("token") || "";
-            if (token) {
-                document.getElementById("token_display").textContent = token;
-                tokenInterval = setInterval(updateTokenExpire, 1000);
-            }
-            updateLoginUI();
-        };
-    </script>
+    };
+</script>
 </body>
 </html>
